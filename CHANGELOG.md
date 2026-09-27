@@ -6,7 +6,7 @@
 
 ### Fixed
 
-- 适配 DSH 0.1.7+ 已移除的“设置 → 插件”页面：侧栏可见性开关改为注册在插件详情页的 `plugins.bundle.config` 插槽（按插件包名匹配）；显式注入 DSH 设置 UI 服务，以启用 `settingsScope` 并保留旧 `settings.plugin.item` 宿主兼容；profile 级设置与隐藏后打开连接器的行为不变。
+- 适配 DSH 0.1.7+ 已移除的“设置 → 插件”页面：通过新版 `configForms` 读取 `mcp-connector` 插件配置，在插件详情页的 `plugins.bundle.config` 插槽显示侧栏可见性开关（按插件包名匹配）；旧 `settingsScope`/`settings.plugin.item` 路径仍用于旧宿主。
 
 ## [0.2.59] - 2026-09-25
 

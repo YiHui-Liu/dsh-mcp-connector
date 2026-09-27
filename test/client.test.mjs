@@ -34,7 +34,7 @@ async function loadClient({
   return plugin;
 }
 
-function clientContext({ workspaceId = 'workspace-1', settingsScope, workspaceNavigation = 'legacy' } = {}) {
+function clientContext({ workspaceId = 'workspace-1', settingsScope, configForms, workspaceNavigation = 'legacy' } = {}) {
   const registrations = new Map();
   const calls = [];
   const shell = {
@@ -92,6 +92,7 @@ function clientContext({ workspaceId = 'workspace-1', settingsScope, workspaceNa
     workspaces,
     sessions,
     get(service) {
+      if (service === 'configForms') return configForms;
       if (service === 'uiWorkspace') return uiWorkspace;
       if (service === 'conversation') return { input: { shell: () => shell } };
       return undefined;
@@ -100,6 +101,9 @@ function clientContext({ workspaceId = 'workspace-1', settingsScope, workspaceNa
   ctx.inject = (services, callback) => {
     if (services.includes('settingsScope') && settingsScope !== undefined) {
       callback({ ...ctx, settingsScope });
+    }
+    if (services.includes('configForms') && configForms !== undefined) {
+      callback(ctx);
     }
   };
   return { ctx, registrations, calls };
@@ -182,6 +186,39 @@ test('内置弹框 Store 实现标准快照、订阅与动作 contract', async (
   instance.actions.open();
   assert.equal(changes, 3);
   assert.doesNotThrow(() => instance.clearPersisted());
+});
+
+test('新版 Host 仅提供 configForms 时详情卡仍可注册和读写侧栏设置', async () => {
+  const settings = mutableSettingsScope({
+    status: 'ready', value: { showSidebarEntry: false }, base: { showSidebarEntry: true },
+    user: { showSidebarEntry: false }, writable: true, mode: 'host', revision: 1,
+  });
+  const plugin = await loadClient({
+    jsxRuntime: {
+      jsx(type, props) { return { type, props }; },
+      jsxs(type, props) { return { type, props }; },
+    },
+    reactApi: {
+      useSyncExternalStore(_subscribe, getSnapshot) { return getSnapshot(); },
+      useState(initial) { return [initial, () => {}]; },
+    },
+  });
+  const queried = [];
+  const { ctx, registrations } = clientContext({ configForms: {
+    get(entryId) { queried.push(entryId); return settings.scope; },
+  } });
+  plugin.apply(ctx);
+  assert.deepEqual(queried, ['mcp-connector']);
+  const bundleCard = registrations.get('plugins.bundle.config');
+  assert.equal(bundleCard.options.key, 'dsh-mcp-connector');
+  assert.equal(registrations.has('settings.plugin.item'), false);
+  const overlay = registrations.get('shell.overlay');
+  assert.equal(bundleCard.options.store, overlay.options.store);
+  assert.equal(overlay.options.store.create().getSnapshot().sidebarVisible, false);
+  const page = bundleCard.component({ ...bundleCard.options.inject(), actions: { open() {} }, view: 'page' });
+  assert.equal(page.type, 'div');
+  await settings.scope.set('showSidebarEntry', true);
+  assert.equal(overlay.options.store.create().getSnapshot().sidebarVisible, true);
 });
 
 test('设置 scope 控制侧边栏可见性并注册同一弹框的快捷入口', async () => {
