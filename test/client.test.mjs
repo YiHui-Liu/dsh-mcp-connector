@@ -155,6 +155,13 @@ test('客户端入口不依赖 Host 版本特有的 Store、Runtime 或 UI Primi
   assert.doesNotMatch(source, /require\("@deepseek-ai\/dsh-client-(?:store|runtime|ui-primitives|ui-settings)/);
 });
 
+test('客户端声明设置作用域与旧设置页插槽依赖', async () => {
+  const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  const injected = manifest.dsh.client.inject;
+  assert.ok(injected.includes('@deepseek-ai/dsh-client-ui-settings'));
+  assert.ok(injected.includes('@deepseek-ai/dsh-client-ui-settings-plugins'));
+});
+
 test('内置弹框 Store 实现标准快照、订阅与动作 contract', async () => {
   const plugin = await loadClient();
   const { ctx, registrations } = clientContext();
